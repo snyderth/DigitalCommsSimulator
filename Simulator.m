@@ -1,18 +1,24 @@
 %% Complete Simulator sequence
 % Run this script for the somplete simulator
 % 
-clc;
-clear all;
+% clc;
+% clear all;
 close all;
+
+ProjectNum = 3;
+
 %% Transmitter
 % For the cosine-pulse-shape///////////
-N_samples = 32;
+N_samples = 4096;
+SRR_Length = 32;
 T = 4; % Information period (second per symbol)
 beta = 0.5;
+sequence_len = 1000;
 %//////////////////////////////////////
 %% Generate the random sequence
-[b1,b2] = GenerateRandomSequence(2000);
-
+[b1,b2] = GenerateRandomSequence(sequence_len);
+og_b1 = b1;
+og_b2 = b2;
 % Upsample the sequence
 b1 = upsample(b1, T);
 b2 = upsample(b2, T);
@@ -20,72 +26,88 @@ b2 = upsample(b2, T);
 %% Pulse Shaping
 % Generate the raised cosine pulse in frequency domain
 H_raisedCos = SqrRootRaisedCosinePulse(N_samples, beta, T);
+H_raisedCos = fftshift(H_raisedCos); % Force to be defined in [0,2pi]
 % Get the time domain version
-h = ifft(H_raisedCos,N_samples * 100);
+h = ifft(H_raisedCos, N_samples);
 % shift second half to the negative time
 h = fftshift(h); 
+% Truncate h to 32
+h = h(1,length(h)/2 - SRR_Length/2:length(h)/2 + SRR_Length/2 -1);
 % Perform pulse shaping
-b1 = myfilter(b1, h);
-b2 = myfilter(b2, h);
 
-figure
-plot(abs(H_raisedCos));
-title("SRR Cosine Pulse");
+b1 = [b1, zeros(1,length(h)/2 - 1)];
+b2 = [b2, zeros(1,length(h)/2 - 1)];
+b1 = myfilter(b1, h) * 2;
+b2 = myfilter(b2, h) * 2;
+b1 = b1(1,length(h)/2:end);
+b2 = b2(1,length(h)/2:end);
 
-figure
-plot(abs(ifft(h)));
-title("SRR Cosine Pulse");
+if(ProjectNum == 1 || ProjectNum == 0)
+
+    figure
+    subplot(1,2,1);
+    plot(linspace(-pi, pi, N_samples) ,fftshift(abs(H_raisedCos)));
+
+    title("SRR Cosine Pulse (frequency)");
+
+    subplot(1,2,2);
+    stem(h);
+    title("SRR Cosine Pulse (time)");
+
+%     freqz(h)
 
 
-figure
-subplot(1,2,1);
-plot(abs(b1));
-title("Pulse Shaped Sequence, b1");
-xlabel("Time");
-ylabel("Magnitude");
+    figure
+    subplot(1,2,1);
+    plot((b1));
+    title("Pulse Shaped Sequence, b1");
+    xlabel("Time");
+    ylabel("Magnitude");
+end
 
 fftsamples = 1024;
 b1fft = fftshift(fft(b1,fftsamples));
 b2fft = fftshift(fft(b2,fftsamples));
 frequencyAxis = linspace(-pi,pi,fftsamples);
 
+if(ProjectNum == 1 || ProjectNum == 0)
 
-% figure
-subplot(1,2,2);
-plot(frequencyAxis, abs(b1fft));
-title("Frequency Response of Pulse Shaped Seq., b1");
-xlabel("Frequency");
-ylabel("Magnitude");
-xticks(-pi:pi/8:pi);
-set(gca,'YScale','log');
-xticklabels({"-\pi",...
-            "^{-7\pi}/_{8}",...
-            "^{-3\pi}/_{4}",...
-            "^{-5\pi}/_{8}",...
-            "^{-\pi}/_{2}",...
-            "^{-3\pi}/_{8}",...
-            "^{-\pi}/_{4}",...
-            "^{-\pi}/_{8}",...
-            "0",...
-            "^{\pi}/_{8}",...
-            "^{\pi}/_{4}",...
-            "^{3\pi}/_{8}",...
-            "^{\pi}/_{2}",...
-            "^{5\pi}/_{8}",...
-            "^{3\pi}/_{4}",...
-            "^{7\pi}/_{8}",...
-            "\pi"});
+    % figure
+    subplot(1,2,2);
+    plot(frequencyAxis, abs(b1fft));
+    title("Frequency Response of Pulse Shaped Seq., b1");
+    xlabel("Frequency");
+    ylabel("Magnitude");
+    xticks(-pi:pi/8:pi);
+    set(gca,'YScale','log');
+    xticklabels({"-\pi",...
+                "^{-7\pi}/_{8}",...
+                "^{-3\pi}/_{4}",...
+                "^{-5\pi}/_{8}",...
+                "^{-\pi}/_{2}",...
+                "^{-3\pi}/_{8}",...
+                "^{-\pi}/_{4}",...
+                "^{-\pi}/_{8}",...
+                "0",...
+                "^{\pi}/_{8}",...
+                "^{\pi}/_{4}",...
+                "^{3\pi}/_{8}",...
+                "^{\pi}/_{2}",...
+                "^{5\pi}/_{8}",...
+                "^{3\pi}/_{4}",...
+                "^{7\pi}/_{8}",...
+                "\pi"});
 
-set(gcf,'Position',[0 0 2000 600]);
-saveas(gcf,"proj2images/pulseShapedSequences.png");
-
+    set(gcf,'Position',[0 0 2000 600]);
+    saveas(gcf,"proj2images/pulseShapedSequences.png");
+end
 %% Upsampling
 upsample_rate = 20;
 % Upsample once more
 b1 = upsample(b1, upsample_rate);
 b2 = upsample(b2, upsample_rate);
 
-
+if(ProjectNum == 1 || ProjectNum == 0)
 
 figure
 % subplot(4,1,3);
@@ -140,13 +162,14 @@ subplot(1,2,1);
 %             "^{3\pi}/_{4}",...
 %             "^{7\pi}/_{8}",...
 %             "\pi"});
-plot(abs(b1));
+plot((b1));
 title("Pre Upsampled and Filtered Sequence, b1");
 xlabel("Time");
 
 set(gcf,'Position',[0 0 2000 600]);
 saveas(gcf,"FreqRespB1Sampling.png");
 
+end
 
 % Now T = 1/20 (decreased sampling period by factor 20).
 % The affect of the upsampling by a factor of 20 is a compression in the
@@ -155,18 +178,19 @@ saveas(gcf,"FreqRespB1Sampling.png");
 % h = fir1(100,1 / (80),'low') * 80;
 % freqz(h);
 filter_size = 500;
-h = generate_fir(3 * pi / 160, filter_size, "Blackman",true) * 20;
-b1 = [b1, zeros(1, ceil((filter_size-1)/2))];
-b2 = [b2, zeros(1, ceil((filter_size-1)/2))];
+h = generate_fir(3 * pi / 160, filter_size, "Blackman",true) * 10;
+b1 = [b1, zeros(1, ceil((filter_size)/2))];
+b2 = [b2, zeros(1, ceil((filter_size)/2))];
 b1 = myfilter(b1, h);
 b2 = myfilter(b2, h);
-b1 = b1(ceil((filter_size - 1)/2) + 1:end);
-b2 = b2(ceil((filter_size- 1)/2) + 1:end);
+b1 = b1(ceil((filter_size)/2) + 1:end);
+b2 = b2(ceil((filter_size)/2) + 1:end);
 
+if(ProjectNum == 1 || ProjectNum == 0)
 figure
 % subplot(4,1,3);
 subplot(1,2,1);
-plot(abs(b1));
+plot((b1));
 title("Upsampled and filtered sequence, b1");
 xlabel("Time");
 ylabel("Magnitude");
@@ -205,7 +229,7 @@ saveas(gcf,"UpsampledAndFilteredB1.png");
 figure
 % subplot(4,1,3);
 subplot(1,2,1);
-plot(abs(b2));
+plot((b2));
 title("Upsampled and filtered sequence, b2");
 xlabel("Time");
 ylabel("Magnitude");
@@ -241,7 +265,7 @@ xticklabels({"-\pi",...
 set(gcf,'Position',[0 0 2000 600]);
 saveas(gcf,"UpsampledAndFilteredB2.png");
 
-
+end
 %% Modulating
 
 mod_freq = 0.44 * pi;
@@ -250,9 +274,14 @@ timescale = linspace(row,col,col); % make timescale
 b1_modulation = cos(timescale * mod_freq);
 b2_modulation = sin(timescale * mod_freq);
 
-b1 = b1_modulation .* abs(b1);
-b2 = b2_modulation .* abs(b2);
+b1 = b1_modulation .* (b1);
+b2 = b2_modulation .* (b2);
 
+
+
+freqSamples = 4000;
+frequencyAxis = linspace(-pi,pi,freqSamples);
+if(ProjectNum == 1 || ProjectNum == 0)
 figure
 % subplot(4,1,4);
 subplot(1,2,1);
@@ -274,8 +303,6 @@ saveas(gcf, "ModulatedSignals.png");
 figure
 % subplot(4,1,3);
 subplot(1,2,1);
-freqSamples = 4000;
-frequencyAxis = linspace(-pi,pi,freqSamples);
 plot(frequencyAxis, abs(fftshift(fft(b1,freqSamples))));
 title("Freq. Response: Modulated Signal, b1");
 xlabel("Frequency");
@@ -328,10 +355,13 @@ xticklabels({"-\pi",...
 
 set(gcf,'Position',[0 0 2000 600]);
 saveas(gcf,"freqRespModulated.png");
-
+end
 %% Summing the signals
 % Final signal
 s = b1 + b2;
+if(ProjectNum == 1 || ProjectNum == 0)
+figure
+pwelch(s);
 
 figure;
 plot(s);
@@ -340,13 +370,15 @@ ylabel("Magnitude");
 set(gcf,'Position',[0 0 1000 300]);
 
 saveas(gcf, "finalSignal.png");
+end
 %% Channel
 rng('default'); % Seed
-variance = 0.01;
+variance = 1;
 n = normrnd(0, variance, 1, col);
 r = s + n;
 
 %% Receiver
+if(ProjectNum == 2 || ProjectNum == 0)
 figure
 subplot(1,2,2);
 plot(frequencyAxis, abs(fftshift(fft(r,freqSamples))));
@@ -402,10 +434,10 @@ xlabel("Time");
         
 set(gcf,'Position',[0 0 2000 600]);
 saveas(gcf, "proj2images/channelSignalUnfiltered.png");
-
+end
 %% Bandpass filtering
 % To filter the signals properly, we must create a low-pass filter with
-% passband +/- 3pi/80. Then we must shift this. The frequency shift may
+% passband +/- 3pi/160. Then we must shift this. The frequency shift may
 % come from the modulating signals that we used to modulate the original
 % signal.
 
@@ -413,11 +445,13 @@ saveas(gcf, "proj2images/channelSignalUnfiltered.png");
 h_bpf = generate_fir(3 * pi / 160, filter_size, "Blackman", true, 0.44 * pi);
 
 % Account for time-shift
-r = [r,zeros(1,ceil((filter_size - 1)/2))];
+r = [r,zeros(1,ceil((filter_size)/2))];
 % filter
 r = myfilter(r,h_bpf);
 % Shift back for timeshift
-r_filtered = r(ceil((filter_size-1)/2)+1:end);
+r_filtered = r(ceil((filter_size)/2)+1:end);
+
+if(ProjectNum == 2 || ProjectNum == 0)
 figure
 subplot(1,2,2);
 plot(frequencyAxis, abs(fftshift(fft(r_filtered,freqSamples))));
@@ -476,17 +510,20 @@ ylabel("Magnitude");
         
 set(gcf,'Position',[0 0 2000 600]);
 saveas(gcf, "proj2images/channelSignalFiltered.png");
-        
+end
 %% Sub sample the signal subsampled x[n] = x[10n]
 sub_rate = 10;
-filter_shift = ceil((filter_size - 1) / 2);
+filter_shift = ceil((filter_size) / 2);
 subsampled_signal = downsample(r_filtered, sub_rate);
+% h_bpf = generate_fir(3 * pi / 20, filter_size, "Blackman", true, 0.48 * pi);
 h_bpf = generate_fir(3 * pi / 16, filter_size, "Blackman", true, 0.4 * pi);
 
 subsampled_signal = [subsampled_signal, zeros(1, filter_shift)];
 subsampled_signal = myfilter(subsampled_signal,h_bpf);
 subsampled_signal = subsampled_signal(filter_shift+1:end);
 
+
+if(ProjectNum == 2 || ProjectNum == 0)
 figure
 subplot(1,2,2);
 plot(linspace(-pi,pi,length(subsampled_signal)), abs(fftshift(fft(subsampled_signal,length(subsampled_signal)))));
@@ -518,13 +555,17 @@ title("A/D Converted, Subsampled Signal");
 xlabel("Time");
 set(gcf,'Position', [0 0 2000 600]);
 saveas(gcf, "proj2images/ADconvertedSignal.png");
-
+end
 
 %% break out each signal by demodulating with sin and cos
 % filter_size = 2000;
-filter_shift = ceil((filter_size-1)/2);
+filter_shift = ceil((filter_size)/2);
+% h_demod = generate_fir(3 * pi / 20, filter_size, "Blackman", true);
 h_demod = generate_fir(3 * pi / 16, filter_size, "Blackman", true);
+
 timescale = 1:1:length(subsampled_signal);
+% demod_1 = cos(0.48 * pi * timescale);
+% demod_2 = sin(0.48 * pi * timescale);
 demod_1 = cos(0.4 * pi * timescale);
 demod_2 = sin(0.4 * pi * timescale);
 
@@ -532,6 +573,7 @@ b_1 = 2 * subsampled_signal .* demod_1;
 b_2 = 2 * subsampled_signal .* demod_2;
 
 
+if(ProjectNum == 2 || ProjectNum == 0)
 figure
 subplot(1,2,2);
 freqSamples = length(b_1)*2;
@@ -613,14 +655,11 @@ set(gcf,'Position', [0 0 2000 600]);
 
 
 saveas(gcf, "proj2images/DemodulatedFilteredB1.png");
-
+end
 %% Subsample and filter once more...
 
-b_1 = downsample(b_1, 2);
-b_2 = downsample(b_2, 2);
-
 % filter_size = 2000;
-filter_shift = ceil((filter_size-1)/2);
+filter_shift = ceil((filter_size)/2);
 h_lpf = 0.5 * generate_fir(3 * pi / 8, filter_size, "Blackman", true);
 
 b_1 = [b_1, zeros(1, filter_shift)];
@@ -631,6 +670,10 @@ b_1 = b_1(filter_shift+1:end);
 b_2 = b_2(filter_shift+1:end);
 
 
+b_1 = downsample(b_1, 2);
+b_2 = downsample(b_2, 2);
+
+if(ProjectNum == 2 || ProjectNum == 0)
 figure
 subplot(1,2,2);
 freqSamples = length(b_1)*2;
@@ -727,3 +770,90 @@ xlabel("Time (s)");
 ylabel("Magnitude");
 
 set(gcf,'Position',[0 0 2000 600]);
+end
+%% Computer Project 3: Equalizer, Matched Filter, Subsampler, and Quantizer
+
+%% Matched Filter
+% Get the time domain version
+h = compute_ifft(H_raisedCos, N_samples);
+% shift second half to the negative time
+h = fftshift(h); 
+if(ProjectNum == 3 || ProjectNum == 0)
+   figure
+   stem(real(h));
+   title ("Time-reversed Square-Root-Raised Cosine Filter");
+   xlabel("Time (s)");
+   ylabel("Magnitude");
+end
+% Truncate h to 32
+h = h(1,length(h)/2 - SRR_Length/2:length(h)/2 + SRR_Length/2 -1);
+h = flip(h);
+
+
+b_1 = [b_1, zeros(1,length(h)/2 - 1)];
+b_2 = [b_2, zeros(1,length(h)/2 - 1)];
+
+% b_1 = [b_1, zeros(1,18)];
+% b_2 = [b_2, zeros(1,18)];
+% b_1 = overlap_save_fir(b_1, h);
+% b_2 = overlap_save_fir(b_2, h);
+b_1 = myfilter(b_1, h);
+b_2 = myfilter(b_2, h);
+b_1 = b_1(1,length(h)/2:end);
+b_2 = b_2(1,length(h)/2:end);
+% b_1 = b_1(1,19:end);
+% b_2 = b_2(1,19:end);
+
+if(ProjectNum == 3 || ProjectNum == 0)
+figure
+plot(real(b_1))
+title("B1 After Matched Filter");
+xlabel("Time (s)");
+ylabel("Magnitude");
+set(gcf,'position',[0 0 500 300]);
+end
+
+
+%% Delay
+
+
+%% Symbol Detection
+
+b1_samples = zeros(1, length(b_1) / 4);
+b2_samples = zeros(1, length(b_2) / 4);
+
+for i = 0:sequence_len - 1
+    b1_samples(1,i + 1) = b_1(1, i*4 + 2);
+    b2_samples(1,i + 1) = b_2(1, i*4 + 2);
+end
+
+% b2_average_pts = mean(b2_samples, 1);
+% b1_average_pts = mean(b1_samples, 1);
+
+if(ProjectNum == 3 || ProjectNum == 0)
+figure
+stem(real(b1_samples));
+title("B1 Final");
+xlabel("Time (s)");
+ylabel("Magnitude");
+end
+
+b1_samples(b1_samples >= 0) = 1;
+b1_samples(b1_samples < 0) = -1;
+b2_samples(b2_samples >= 0) = 1;
+b2_samples(b2_samples < 0) = -1;
+
+
+b1_results = (b1_samples == og_b1);
+b2_results = (b2_samples == og_b2);
+
+symbol_results = (b1_results == b2_results);
+
+output = sprintf("B1 Sequence Success: %.2f Percent\n", sum(b1_results(1,:))/length(b1_results)*100);
+disp(output);
+output = sprintf("B2 Sequence Success: %.2f Percent\n", sum(b2_results(1,:))/length(b2_results)*100);
+disp(output);
+output = sprintf("Symbol Success Rate: %.2f Percent\n", sum(symbol_results(1,:))/length(symbol_results)*100);
+disp(output);
+
+
