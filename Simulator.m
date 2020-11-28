@@ -795,10 +795,10 @@ b_2 = [b_2, zeros(1,length(h)/2 - 1)];
 
 % b_1 = [b_1, zeros(1,18)];
 % b_2 = [b_2, zeros(1,18)];
-% b_1 = overlap_save_fir(b_1, h);
-% b_2 = overlap_save_fir(b_2, h);
-b_1 = myfilter(b_1, h);
-b_2 = myfilter(b_2, h);
+b_1 = overlap_save_fir(b_1, h);
+b_2 = overlap_save_fir(b_2, h);
+% b_1 = myfilter(b_1, h);
+% b_2 = myfilter(b_2, h);
 b_1 = b_1(1,length(h)/2:end);
 b_2 = b_2(1,length(h)/2:end);
 % b_1 = b_1(1,19:end);
