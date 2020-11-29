@@ -1,11 +1,30 @@
 %% Complete Simulator sequence
-% Run this script for the somplete simulator
+% Run this script for the complete simulator
+% Ensure that all files included in the .ZIP file are in the same
+% directory. The parameters for tuning the signal to noise ratio and
+% sequence lenght are at the top:
+%       SNR
+%       sequence_len
 % 
-% clc;
-% clear all;
+% To run:
+%   1) Unzip file into a directory
+%   2) Open MATLAB in the working directory of the code
+%   3) Either type "Simulator" in command line or open the "Simulator.m"
+%       file and click "Run" in MATLAB.
+clc;
+clear all;
 close all;
 
-ProjectNum = 3;
+%% Controls figures that are displayed:
+% 0: Display figures from all projects
+% 1: Display figures from project 1
+% 2: Display figures from project 2
+% 3: Display figures from project 3
+ProjectNum = 0;
+
+%% Testing Parms 
+SNR = 10; % dB
+sequence_len = 1000; % Length of bit sequences
 
 %% Transmitter
 % For the cosine-pulse-shape///////////
@@ -13,7 +32,6 @@ N_samples = 4096;
 SRR_Length = 32;
 T = 4; % Information period (second per symbol)
 beta = 0.5;
-sequence_len = 1000;
 %//////////////////////////////////////
 %% Generate the random sequence
 [b1,b2] = GenerateRandomSequence(sequence_len);
@@ -99,7 +117,7 @@ if(ProjectNum == 1 || ProjectNum == 0)
                 "\pi"});
 
     set(gcf,'Position',[0 0 2000 600]);
-    saveas(gcf,"proj2images/pulseShapedSequences.png");
+    saveas(gcf,"pulseShapedSequences.png");
 end
 %% Upsampling
 upsample_rate = 20;
@@ -373,8 +391,11 @@ saveas(gcf, "finalSignal.png");
 end
 %% Channel
 rng('default'); % Seed
-variance = 1;
-n = normrnd(0, variance, 1, col);
+% SNR = 10 log var(s) - 10 log var(r)
+% 10 log var(r) = 10 log var(s) - SNR
+% var(r) = 10^(log var(s) - SNR/10)
+noise_variance = 10^(log(var(s)) - SNR/10);
+n = normrnd(0, noise_variance, 1, col);
 r = s + n;
 
 %% Receiver
@@ -433,7 +454,7 @@ xlabel("Time");
 %             "\pi"});
         
 set(gcf,'Position',[0 0 2000 600]);
-saveas(gcf, "proj2images/channelSignalUnfiltered.png");
+saveas(gcf, "channelSignalUnfiltered.png");
 end
 %% Bandpass filtering
 % To filter the signals properly, we must create a low-pass filter with
@@ -509,7 +530,7 @@ xlabel("Time");
 ylabel("Magnitude");
         
 set(gcf,'Position',[0 0 2000 600]);
-saveas(gcf, "proj2images/channelSignalFiltered.png");
+saveas(gcf, "channelSignalFiltered.png");
 end
 %% Sub sample the signal subsampled x[n] = x[10n]
 sub_rate = 10;
@@ -554,7 +575,7 @@ plot(subsampled_signal);
 title("A/D Converted, Subsampled Signal");
 xlabel("Time");
 set(gcf,'Position', [0 0 2000 600]);
-saveas(gcf, "proj2images/ADconvertedSignal.png");
+saveas(gcf, "ADconvertedSignal.png");
 end
 
 %% break out each signal by demodulating with sin and cos
@@ -609,7 +630,7 @@ xlabel("Time");
 set(gcf,'Position', [0 0 2000 600]);
 
 
-saveas(gcf, "proj2images/DemodulatedUnfilteredB1.png");
+saveas(gcf, "DemodulatedUnfilteredB1.png");
 
 b_1 = [b_1, zeros(1, filter_shift)];
 b_2 = [b_2, zeros(1, filter_shift)];
@@ -654,7 +675,7 @@ xlabel("Time");
 set(gcf,'Position', [0 0 2000 600]);
 
 
-saveas(gcf, "proj2images/DemodulatedFilteredB1.png");
+saveas(gcf, "DemodulatedFilteredB1.png");
 end
 %% Subsample and filter once more...
 
@@ -732,7 +753,7 @@ ylabel("Magnitude");
 %             "\pi"});
 
 set(gcf,'Position',[0 0 2000 600]);
-saveas(gcf, "proj2images/RecoveredB1.png");
+saveas(gcf, "RecoveredB1.png");
 
 
 figure
@@ -780,10 +801,43 @@ h = compute_ifft(H_raisedCos, N_samples);
 h = fftshift(h); 
 if(ProjectNum == 3 || ProjectNum == 0)
    figure
-   stem(real(h));
+   subplot(1,2,1);
+   stem(real(flip(h)));
    title ("Time-reversed Square-Root-Raised Cosine Filter");
    xlabel("Time (s)");
    ylabel("Magnitude");
+   xlim([2000 2100]);
+   
+   subplot(1,2,2);
+   freqSamples = length(h)*2;
+    frequencyAxis = linspace(-pi,pi,freqSamples);
+    plot(frequencyAxis, abs(fftshift(fft(flip(h),freqSamples))));
+    title("Matched SRR Filter");
+    xlabel("Frequency");
+    ylabel("Magnitude");
+    xticks(-pi:pi/8:pi);
+%     set(gca,'YScale','log');
+    xticklabels({"-\pi",...
+                "^{-7\pi}/_{8}",...
+                "^{-3\pi}/_{4}",...
+                "^{-5\pi}/_{8}",...
+                "^{-\pi}/_{2}",...
+                "^{-3\pi}/_{8}",...
+                "^{-\pi}/_{4}",...
+                "^{-\pi}/_{8}",...
+                "0",...
+                "^{\pi}/_{8}",...
+                "^{\pi}/_{4}",...
+                "^{3\pi}/_{8}",...
+                "^{\pi}/_{2}",...
+                "^{5\pi}/_{8}",...
+                "^{3\pi}/_{4}",...
+                "^{7\pi}/_{8}",...
+                "\pi"});
+    set(gcf,'Position',[0 0 2000 600]);
+
+    saveas(gcf, "Proj3MatchedFilter.png");
+
 end
 % Truncate h to 32
 h = h(1,length(h)/2 - SRR_Length/2:length(h)/2 + SRR_Length/2 -1);
@@ -805,12 +859,45 @@ b_2 = b_2(1,length(h)/2:end);
 % b_2 = b_2(1,19:end);
 
 if(ProjectNum == 3 || ProjectNum == 0)
-figure
-plot(real(b_1))
-title("B1 After Matched Filter");
-xlabel("Time (s)");
-ylabel("Magnitude");
-set(gcf,'position',[0 0 500 300]);
+    figure
+    subplot(1,2,1);
+    plot(real(b_1))
+    title("B1 After Matched Filter");
+    xlabel("Time (s)");
+    ylabel("Magnitude");
+    
+    subplot(1,2,2);
+    freqSamples = length(b_1)*2;
+    frequencyAxis = linspace(-pi,pi,freqSamples);
+
+    plot(frequencyAxis, abs(fftshift(fft(b_1, freqSamples))));
+    title("B1 Spectrum After Matched Filtering");
+    xlabel("Frequency (\omega)");
+    ylabel("Magnitude");
+    xticks(-pi:pi/8:pi);
+%     set(gca,'YScale','log');
+    xticklabels({"-\pi",...
+                "^{-7\pi}/_{8}",...
+                "^{-3\pi}/_{4}",...
+                "^{-5\pi}/_{8}",...
+                "^{-\pi}/_{2}",...
+                "^{-3\pi}/_{8}",...
+                "^{-\pi}/_{4}",...
+                "^{-\pi}/_{8}",...
+                "0",...
+                "^{\pi}/_{8}",...
+                "^{\pi}/_{4}",...
+                "^{3\pi}/_{8}",...
+                "^{\pi}/_{2}",...
+                "^{5\pi}/_{8}",...
+                "^{3\pi}/_{4}",...
+                "^{7\pi}/_{8}",...
+                "\pi"});
+    
+    set(gcf,'position',[0 0 2000 600]);
+    
+    saveas(gcf, "Proj3FilteredB1.png");
+    
 end
 
 
@@ -836,6 +923,9 @@ stem(real(b1_samples));
 title("B1 Final");
 xlabel("Time (s)");
 ylabel("Magnitude");
+set(gcf, 'Position', [0 0 2000 600]);
+saveas(gcf, "Proj3FinalB1.png");
+
 end
 
 b1_samples(b1_samples >= 0) = 1;
@@ -848,12 +938,13 @@ b1_results = (b1_samples == og_b1);
 b2_results = (b2_samples == og_b2);
 
 symbol_results = (b1_results == b2_results);
-
-output = sprintf("B1 Sequence Success: %.2f Percent\n", sum(b1_results(1,:))/length(b1_results)*100);
+output = sprintf("SNR: %d with noise variance: %.3f\n",SNR, noise_variance);
 disp(output);
-output = sprintf("B2 Sequence Success: %.2f Percent\n", sum(b2_results(1,:))/length(b2_results)*100);
+output = sprintf("B1 Sequence Success: %d of %d incorrect\n", length(b1_results) - sum(b1_results), length(b1_results));
 disp(output);
-output = sprintf("Symbol Success Rate: %.2f Percent\n", sum(symbol_results(1,:))/length(symbol_results)*100);
+output = sprintf("B2 Sequence Success: %d of %d incorrect\n", length(b2_results) - sum(b2_results), length(b2_results));
+disp(output);
+output = sprintf("Symbol Success Rate: %d of %d incorrect\n", length(symbol_results) - sum(symbol_results(1,:)), length(symbol_results));
 disp(output);
 
 
